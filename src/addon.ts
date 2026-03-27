@@ -11,6 +11,7 @@ class Addon {
     env: "development" | "production";
     initialized?: boolean;
     ztoolkit: ZToolkit;
+    registeredItemTreeColumns: string[];
     locale?: {
       current: any;
     };
@@ -33,6 +34,7 @@ class Addon {
       env: __env__,
       initialized: false,
       ztoolkit: createZToolkit(),
+      registeredItemTreeColumns: [],
     };
     this.hooks = hooks;
     this.api = {};
