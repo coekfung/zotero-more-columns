@@ -43,6 +43,30 @@ function getPluginInstance() {
   return Zotero[config.addonInstance];
 }
 
+function bindPluginGlobals(pluginInstance = getPluginInstance()) {
+  const hadAddon = Reflect.has(globalThis, "addon");
+  const originalAddon = Reflect.get(globalThis, "addon");
+  const hadZToolkit = Reflect.has(globalThis, "ztoolkit");
+  const originalZToolkit = Reflect.get(globalThis, "ztoolkit");
+
+  Reflect.set(globalThis, "addon", pluginInstance);
+  Reflect.set(globalThis, "ztoolkit", pluginInstance.data.ztoolkit);
+
+  return () => {
+    if (hadAddon) {
+      Reflect.set(globalThis, "addon", originalAddon);
+    } else {
+      Reflect.deleteProperty(globalThis, "addon");
+    }
+
+    if (hadZToolkit) {
+      Reflect.set(globalThis, "ztoolkit", originalZToolkit);
+    } else {
+      Reflect.deleteProperty(globalThis, "ztoolkit");
+    }
+  };
+}
+
 describe("startup", function () {
   it("should have plugin instance defined", function () {
     assert.isNotEmpty(Zotero[config.addonInstance]);
@@ -85,6 +109,7 @@ describe("startup", function () {
 
   it("should register all MVP columns during startup", async function () {
     const pluginInstance = getPluginInstance();
+    const restorePluginGlobals = bindPluginGlobals(pluginInstance);
     const originalRegisterColumn = Zotero.ItemTreeManager.registerColumn;
     const originalLocale = pluginInstance.data.locale;
     const originalInitialized = pluginInstance.data.initialized;
@@ -114,6 +139,7 @@ describe("startup", function () {
         `${config.addonID}:tagCount`,
       ]);
     } finally {
+      restorePluginGlobals();
       Zotero.ItemTreeManager.registerColumn = originalRegisterColumn;
       pluginInstance.data.locale = originalLocale;
       pluginInstance.data.initialized = originalInitialized;
@@ -123,6 +149,7 @@ describe("startup", function () {
 
   it("should unregister tracked columns during shutdown", function () {
     const pluginInstance = getPluginInstance();
+    const restorePluginGlobals = bindPluginGlobals(pluginInstance);
     const originalUnregisterColumn = Zotero.ItemTreeManager.unregisterColumn;
     const originalPluginInstance = Zotero[config.addonInstance];
     const originalAlive = pluginInstance.data.alive;
@@ -151,6 +178,7 @@ describe("startup", function () {
       assert.isFalse(pluginInstance.data.alive);
       assert.isUndefined(Zotero[config.addonInstance]);
     } finally {
+      restorePluginGlobals();
       Zotero.ItemTreeManager.unregisterColumn = originalUnregisterColumn;
       pluginInstance.data.alive = originalAlive;
       pluginInstance.data.registeredItemTreeColumns = [];
